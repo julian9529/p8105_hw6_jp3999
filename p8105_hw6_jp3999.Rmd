@@ -81,8 +81,22 @@ models_results_df %>%
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
+## Problem 2
 
+```{r}
+baby_df = 
+  read_csv("./data/birthweight.csv")
+```
 
+```{r}
+model_fit = lm(bwt ~ gaweeks, data = baby_df)
+```
 
+```{r}
+baby_df %>% 
+  modelr::add_residuals(model_fit) %>% 
+  ggplot(aes(x = gaweeks, y = resid)) + 
+  geom_point()
+```
 
 
