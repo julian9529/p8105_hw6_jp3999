@@ -50,6 +50,7 @@ glm(resolution ~ victim_age + victim_race + victim_sex,
   knitr::kable(digits = 3)
 ```
 
+Try across cities
 ```{r}
 models_results_df = 
   homicide_df %>% 
@@ -82,21 +83,50 @@ models_results_df %>%
 ```
 
 ## Problem 2
-
+Read and check class
 ```{r}
 baby_df = 
   read_csv("./data/birthweight.csv")
+sapply(baby_df, class)
+```
+
+All the variables are in numeric class and require no further conversions or cleaning. 
+
+#### Proposed Model
+
+```{r}
+model_fit = lm(bwt ~ smoken +mrace +momage + fincome, data = baby_df)
+  
 ```
 
 ```{r}
-model_fit = lm(bwt ~ gaweeks, data = baby_df)
+model_fit %>%  
+    broom::tidy()%>% 
+knitr::kable(digits=3)
 ```
 
+#### Plot of Modeled Residuals
 ```{r}
 baby_df %>% 
   modelr::add_residuals(model_fit) %>% 
-  ggplot(aes(x = gaweeks, y = resid)) + 
+  ggplot(aes(x = smoken, y = resid)) + 
   geom_point()
 ```
 
+```{r}
+model_one = lm(bwt ~ blength + gaweeks, data = baby_df)
+model_two =  lm(bwt ~ bhead*blength + bhead*babysex +  blength*babysex + blength*babysex*bhead, data = baby_df)
+```
+
+```{r}
+model_one %>%  
+    broom::tidy()%>% 
+knitr::kable(digits=3)
+```
+
+```{r}
+model_two %>%  
+    broom::tidy()%>% 
+knitr::kable(digits=3)
+```
 
