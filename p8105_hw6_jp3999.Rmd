@@ -10,6 +10,8 @@ library(readxl)
 library(broom)
 library (modelr)
 library(mgcv)
+set.seed(1)
+
 ```
 
 ## Problem 1 
@@ -165,3 +167,84 @@ cv_df %>%
 ```
 
 Model 2 is the best given lower rmse
+
+## Problem 3
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+Drawing many bootstrap samples
+
+```{r}
+boot_sample = function(df) {
+  sample_frac(df, replace = TRUE)
+}
+```
+
+```{r}
+boot_straps = 
+  data_frame(
+    strap_number = 1:5000,
+    strap_sample = rerun(5000, boot_sample(weather_df))
+  )
+boot_straps
+
+```
+
+```{r}
+bootstrap_results_r_sq = 
+  boot_straps %>% 
+  mutate(
+    models = map(strap_sample, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::glance)) %>% 
+  select(-strap_sample, -models) %>% 
+  unnest(results) 
+
+
+bootstrap_results_r_sq %>% 
+  ggplot(aes(x= adj.r.squared)) +
+  geom_density() +
+  labs(title = "Bootstrap R^2 ", x = "Adjusted R^2", y = "Density")
+```
+
+This graph looks like it is normally distributed, the peak seems to be at about .91. 
+
+Results 2 
+```{r}
+bootstrap_results_beta = 
+  boot_straps %>% 
+  mutate(
+    models = map(.x = strap_sample, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  unnest(results) %>%
+  select (strap_number, term, estimate)%>%
+ mutate(
+   term = str_replace(term,"\\(Intercept\\)","Intercept")) %>%
+pivot_wider(
+  names_from = "term", 
+  values_from = "estimate")%>% 
+
+mutate(
+    log = log(Intercept * tmin)) 
+
+```
+
+
+```{r}
+bootstrap_results_beta%>% 
+  ggplot(aes(x= log)) +
+  geom_density()+
+  labs(title = "Bootstrap Log ", x = "Log", y = "Density")
+```
+
