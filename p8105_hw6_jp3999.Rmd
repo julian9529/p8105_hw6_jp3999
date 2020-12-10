@@ -92,19 +92,36 @@ Read and check class
 baby_df = 
   read_csv("./data/birthweight.csv")
 sapply(baby_df, class)
+
 ```
 
-All the variables are in numeric class and require no further conversions or cleaning. 
+```{r}
+baby_df =
+  baby_df  %>%
+mutate(
+         babysex = as.factor(babysex),
+         mrace = as.factor(mrace),
+         frace = as.factor(frace),
+         malform = as.factor(malform)
+         )
+```
+
+I did not detect any missing data. 
 
 #### Proposed Model
+The variables I chose for my model are average number of cigarettes smoked per day during pregnancy (smoken), mother's race (mrace), mother's age in years (momage),family's monthly income (fincome). My model was built based on the Zhang & Yang (2019) article "Maternal Smoking and Infant Low Birth Weight: Exploring the Biological Mechanism Through the Mother’s Pre-pregnancy Weight Status" as they found these to be significant predictors on baby birthweight. 
 
+https://link.springer.com/article/10.1007/s11113-019-09554-x
 ```{r}
-model_fit = lm(bwt ~ smoken +mrace +momage + fincome, data = baby_df)
+model_0 = lm(bwt ~ smoken +mrace +momage + fincome, data = baby_df)
   
 ```
 
+
+
+
 ```{r}
-model_fit %>%  
+model_0 %>%  
     broom::tidy()%>% 
 knitr::kable(digits=3)
 ```
@@ -112,12 +129,14 @@ knitr::kable(digits=3)
 #### Plot of Modeled Residuals
 ```{r}
 baby_df %>% 
-  modelr::add_residuals(model_fit) %>% 
-  add_predictions(model_fit)%>% 
+  modelr::add_residuals(model_0) %>% 
+  add_predictions(model_0)%>% 
   ggplot(aes(x = pred, y = resid)) + 
   geom_point() +
   labs(title = "Residuals Against Fitted Values", x = "Fitted Values", y = "Residuals")
 ```
+
+The plot of my model looks okay as most values seem to be close and distributed near the x axis (0). I would be interested in further exploring the values that are extreme on the negative axis. 
 
 ```{r}
 model_one = lm(bwt ~ blength + gaweeks, data = baby_df)
@@ -146,12 +165,12 @@ cv_df =
   cv_df = 
   cv_df %>% 
   mutate(
-    model_fit  = map(train, ~lm(bwt ~ smoken +mrace +momage + fincome, data =.x)), 
+    model_0  = map(train, ~lm(bwt ~ smoken +mrace +momage + fincome, data =.x)), 
     model_one= map(train, ~ lm(bwt ~ blength + gaweeks, data =.x)),
     model_two= map(train, ~ lm(bwt ~ bhead*blength + bhead*babysex +  blength*babysex + blength*babysex*bhead, data =.x))) %>%
 
    mutate(
-    rmse_fit = map2_dbl(model_fit, test, ~rmse(model = .x, data = .y)),
+    rmse_0 = map2_dbl(model_0, test, ~rmse(model = .x, data = .y)),
     rmse_1    = map2_dbl(model_one, test, ~rmse(model = .x, data = .y)),
     rmse_2 = map2_dbl(model_two, test, ~rmse(model = .x, data = .y)))
 
@@ -166,7 +185,9 @@ cv_df %>%
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
 
-Model 2 is the best given lower rmse
+Model 2 is the best given it has the lowest rmse out of the three. Model two is the one that included head circumfrence,sex, length, and their  interactions ( bhead x blength + bhead x babysex +  blength x babysex + blength x babysex x bhead)
+
+My proposed model (0) actually has a very high rmse and thus is by far the least optimal model. 
 
 ## Problem 3
 
@@ -218,7 +239,15 @@ bootstrap_results_r_sq %>%
   labs(title = "Bootstrap R^2 ", x = "Adjusted R^2", y = "Density")
 ```
 
-This graph looks like it is normally distributed, the peak seems to be at about .91. 
+This plot of the adjusted r^2 looks like it is normally distributed, the mean seems to be at about .91. The 95% CI (.89, .92) were calculated in the next step. 
+
+```{r}
+ bootstrap_results_r_sq %>% 
+summarise(
+    ci_lower = quantile(adj.r.squared, 0.025),
+    ci_upper = quantile(adj.r.squared, 0.975)) %>%
+knitr::kable( )
+```
 
 Results 2 
 ```{r}
@@ -238,13 +267,24 @@ pivot_wider(
 mutate(
     log = log(Intercept * tmin)) 
 
+
+```
+
+```{r}
+ bootstrap_results_beta %>% 
+ summarise(
+    ci_lower = quantile(log, 0.025),
+    ci_upper = quantile(log, 0.975)) %>%
+knitr::kable( )
 ```
 
 
 ```{r}
 bootstrap_results_beta%>% 
+  
   ggplot(aes(x= log)) +
   geom_density()+
   labs(title = "Bootstrap Log ", x = "Log", y = "Density")
 ```
 
+This plot of the log(B0 *B1) looks like it is normally distributed, the mean seems to be at about 2.20. The 95% CI (1.97,2.06) were calculated in the next step. 
